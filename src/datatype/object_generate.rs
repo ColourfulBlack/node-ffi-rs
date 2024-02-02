@@ -160,6 +160,21 @@ pub unsafe fn create_rs_struct_from_pointer(
             offset += size + padding;
             field_size = size
           }
+          RefDataType::ExternalArray => {
+            let (size, align) = get_size_align::<*const c_void>();
+            let padding = (align - (offset % align)) % align;
+            field_ptr = field_ptr.offset(padding as isize);
+            let type_field_ptr = field_ptr as *mut *mut *mut c_void;
+            let arr = create_array_from_pointer(*type_field_ptr, array_len);
+            rs_struct.insert(field, RsArgsValue::ExternalArray(
+              arr
+                .into_iter()
+                .map(|p| env.create_external(*(p as *mut *mut c_void), None).unwrap())
+                .collect()
+            ));
+            offset += size + padding;
+            field_size = size
+          }
         };
         size
       } else {
@@ -222,6 +237,7 @@ pub fn rs_value_to_js_unknown(env: &Env, data: RsArgsValue) -> Result<JsUnknown>
     RsArgsValue::DoubleArray(val) => val.to_js_array(env)?.into_unknown(),
     RsArgsValue::Object(obj) => create_js_object_from_rs_map(env, obj)?.into_unknown(),
     RsArgsValue::External(val) => val.into_unknown(),
+    RsArgsValue::ExternalArray(val) => val.to_js_array(env)?.into_unknown(),
     RsArgsValue::Void(_) => env.get_undefined()?.into_unknown(),
     RsArgsValue::Function(_, _) => panic!("function need to be improved"),
   };

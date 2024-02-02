@@ -71,6 +71,15 @@ pub unsafe fn get_js_function_call_value(
             let arr = create_array_from_pointer(func_val_ptr as *mut c_double, array_len);
             return RsArgsValue::DoubleArray(arr);
           }
+          RefDataType::ExternalArray => {
+            let arr = create_array_from_pointer(func_val_ptr as *mut *mut c_void, array_len);
+            return RsArgsValue::ExternalArray(
+              arr
+                .into_iter()
+                .map(|p| env.create_external(*(p as *mut *mut c_void), None).unwrap())
+                .collect(),
+            );
+          }
         }
       } else {
         // function | raw object

@@ -58,6 +58,46 @@ const unitTest = () => {
   })
   deepStrictEqual(restoreData, [[1.1, 2.2]])
 
+  const BallType = {
+    round: DataType.Double,
+    weight: DataType.Double
+  }
+
+  const balls = [
+    {
+      round: 1.1,
+      weight: 2.1
+    },
+    {
+      round: 2.2,
+      weight: 3.1
+    }]
+
+  const externalArray = createPointer({
+    paramsType: [BallType, BallType],
+    paramsValue: balls
+  })
+
+  const externalArrayPtr = createPointer({
+    paramsType: [DataType.ExternalArray],
+    paramsValue: [externalArray]
+  })[0]
+
+  const externalArrayRestored = restorePointer({
+    retType: [arrayConstructor({
+      type: DataType.ExternalArray,
+      length: 2
+    })],
+    paramsValue: [externalArrayPtr]
+  })[0]
+
+  const ballDatas = restorePointer({
+    retType: [BallType, BallType],
+    paramsValue: externalArrayRestored
+  })
+
+  deepStrictEqual(ballDatas, balls)
+
   const ptr = load({
     library: "libsum",
     funcName: "concatenateStrings",

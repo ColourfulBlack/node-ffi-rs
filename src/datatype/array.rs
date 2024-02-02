@@ -1,4 +1,4 @@
-use napi::bindgen_prelude::*;
+use napi::{bindgen_prelude::*, JsExternal};
 use napi::{Error, JsNumber, JsObject, JsString, JsUnknown, NapiValue};
 
 pub trait ToRsArray<T, U> {
@@ -53,6 +53,21 @@ impl ToRsArray<i32, JsNumber> for JsObject {
   }
 }
 
+impl ToRsArray<JsExternal, JsExternal> for JsObject {
+  fn to_rs_array(self) -> Result<Vec<JsExternal>>
+  where
+    JsNumber: TryFrom<JsUnknown> + NapiValue,
+  {
+    (0..self.get_array_length()?)
+      .enumerate()
+      .map(|(index, _)| {
+        let js_unknown: JsUnknown = self.get_element(index as u32)?;
+        Ok(js_unknown.try_into()?)
+      })
+      .collect()
+  }
+}
+
 pub trait ToJsArray {
   fn to_js_array(self, env: &Env) -> Result<JsObject>;
 }
@@ -93,6 +108,17 @@ impl ToJsArray for Vec<u8> {
     let _ = self.into_iter().enumerate().try_for_each(|(index, item)| {
       js_array.set_element(index as u32, env.create_uint32(item as u32)?)
     });
+    Ok(js_array)
+  }
+}
+
+impl ToJsArray for Vec<JsExternal> {
+  fn to_js_array(self, env: &Env) -> Result<JsObject> {
+    let mut js_array = env.create_array_with_length(self.len())?;
+    let _ = self
+      .into_iter()
+      .enumerate()
+      .try_for_each(|(index, item)| js_array.set_element(index as u32, item));
     Ok(js_array)
   }
 }

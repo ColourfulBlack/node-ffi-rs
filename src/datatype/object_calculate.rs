@@ -2,7 +2,7 @@ use crate::define::RsArgsValue;
 use crate::utils::dataprocess::get_js_external_wrap_data;
 use indexmap::IndexMap;
 use libc::{c_ulonglong, c_void};
-use napi::{Env, Result};
+use napi::{Env, JsExternal, Result};
 use std::alloc::{alloc, Layout};
 use std::ffi::CString;
 use std::ffi::{c_char, c_double, c_int, c_longlong, c_uchar};
@@ -49,6 +49,7 @@ pub fn calculate_struct_size(map: &IndexMap<String, RsArgsValue>) -> (usize, usi
         | RsArgsValue::DoubleArray(_)
         | RsArgsValue::I32Array(_)
         | RsArgsValue::U8Array(_, _)
+        | RsArgsValue::ExternalArray(_)
         | RsArgsValue::External(_) => calculate_pointer(size, align, offset),
         RsArgsValue::Function(_, _) => {
           panic!("{:?} calculate_layout error", field_val)
@@ -200,6 +201,15 @@ pub unsafe fn generate_c_struct(
         offset += size + padding;
         size
       }
+      RsArgsValue::ExternalArray(arr) => {
+        let (size, align) = get_size_align::<*mut c_void>();
+        let padding = (align - (offset % align)) % align;
+        field_ptr = field_ptr.offset(padding as isize);
+        (field_ptr as *mut *const JsExternal).write(arr.as_ptr());
+        std::mem::forget(arr);
+        offset += size + padding;
+        size
+      },
       RsArgsValue::Void(_) => {
         let (size, align) = get_size_align::<()>();
         let padding = (align - (offset % align)) % align;

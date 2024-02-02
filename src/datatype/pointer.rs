@@ -1,4 +1,5 @@
 use std::ffi::{c_char, CString};
+use libc::c_void;
 
 pub trait ArrayPointer {
   type Output;
@@ -20,6 +21,7 @@ macro_rules! impl_array_pointer {
 impl_array_pointer!(*mut u8, u8);
 impl_array_pointer!(*mut i32, i32);
 impl_array_pointer!(*mut f64, f64);
+impl_array_pointer!(*mut *mut c_void, *mut c_void);
 
 impl ArrayPointer for *mut *mut c_char {
   type Output = String;

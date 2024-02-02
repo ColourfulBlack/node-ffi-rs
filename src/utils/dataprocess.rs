@@ -147,6 +147,20 @@ pub unsafe fn get_arg_types_values(
               let js_external: JsExternal = value.try_into()?;
               (arg_type, RsArgsValue::External(js_external))
             }
+            DataType::ExternalArray => {
+              let arg_type = &mut ffi_type_pointer as *mut ffi_type;
+              let js_object = value.coerce_to_object()?;
+              let arg_val = vec![0; js_object.get_array_length()? as usize]
+                .iter()
+                .enumerate()
+                .map(|(index, _)| {
+                  let js_element: JsExternal = js_object.get_element(index as u32).unwrap();
+                  return js_element;
+                })
+                .collect::<Vec<JsExternal>>();
+
+              (arg_type, RsArgsValue::ExternalArray(arg_val))
+            }
           }
         }
         ValueType::Object => {
@@ -271,6 +285,19 @@ pub unsafe fn get_value_pointer(
 
         let ptr = c_char_vec.as_ptr();
         std::mem::forget(c_char_vec);
+        Ok(Box::into_raw(Box::new(ptr)) as *mut c_void)
+      }
+      RsArgsValue::ExternalArray(val) => {
+        let c_void_vec: Vec<*mut c_void> = val
+          .into_iter()
+          .map(|js_external| {
+            return Box::into_raw(Box::new(
+              get_js_external_wrap_data(&env, js_external).unwrap(),
+            )) as *mut c_void;
+          })
+          .collect();
+        let ptr = c_void_vec.as_ptr();
+        std::mem::forget(c_void_vec);
         Ok(Box::into_raw(Box::new(ptr)) as *mut c_void)
       }
       RsArgsValue::Boolean(val) => {
@@ -406,6 +433,11 @@ pub fn get_params_value_rs_struct(
             DataType::External => {
               let val: JsExternal = params_value_object.get_named_property(&field)?;
               RsArgsValue::External(val)
+            }
+            DataType::ExternalArray => {
+              let js_array: JsObject = params_value_object.get_named_property(&field)?;
+              let arg_val = js_array.to_rs_array()?;
+              RsArgsValue::ExternalArray(arg_val)
             }
             DataType::Void => RsArgsValue::Void(()),
           };
@@ -547,6 +579,22 @@ pub unsafe fn get_js_unknown_from_pointer(
           RefDataType::StringArray => {
             let arr = create_array_from_pointer(*(ptr as *mut *mut *mut c_char), array_len);
             rs_value_to_js_unknown(env, RsArgsValue::StringArray(arr))
+          }
+          RefDataType::ExternalArray => {
+            let arr = create_array_from_pointer(*(ptr as *mut *mut *mut c_void), array_len);
+            rs_value_to_js_unknown(
+              env,
+              RsArgsValue::ExternalArray(
+                arr
+                  .into_iter()
+                  .map(|p| {
+                    env
+                      .create_external(*(p as *mut *mut c_void), None)
+                      .unwrap()
+                  })
+                  .collect(),
+              ),
+            )
           }
         }
       } else {

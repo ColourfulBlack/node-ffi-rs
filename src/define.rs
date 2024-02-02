@@ -86,6 +86,7 @@ pub enum DataType {
   U8Array = 10,
   External = 11,
   U64 = 12,
+  ExternalArray = 13,
 }
 
 #[derive(Debug)]
@@ -107,6 +108,7 @@ pub enum RefDataType {
   StringArray = 4,
   DoubleArray = 5,
   U8Array = 10,
+  ExternalArray = 13,
 }
 
 pub fn number_to_data_type(value: i32) -> DataType {
@@ -124,6 +126,7 @@ pub fn number_to_data_type(value: i32) -> DataType {
     10 => DataType::U8Array,
     11 => DataType::External,
     12 => DataType::U64,
+    13 => DataType::ExternalArray,
     _ => panic!("unknow DataType"),
   }
 }
@@ -148,6 +151,7 @@ pub fn number_to_ref_data_type(value: i32) -> RefDataType {
     4 => RefDataType::StringArray,
     5 => RefDataType::DoubleArray,
     10 => RefDataType::U8Array,
+    13 => RefDataType::ExternalArray,
     _ => panic!("unknow DataType"),
   }
 }
@@ -168,6 +172,7 @@ pub enum RsArgsValue {
   Void(()),
   Function(JsFunction, JsFunction),
   External(JsExternal),
+  ExternalArray(Vec<JsExternal>),
 }
 
 impl std::fmt::Debug for RsArgsValue {
@@ -190,6 +195,7 @@ impl std::fmt::Debug for RsArgsValue {
       RsArgsValue::Void(_) => write!(f, "Void"),
       RsArgsValue::External(_) => write!(f, "JsExternal"),
       RsArgsValue::Function(_, _) => write!(f, "JsFunction"),
+      RsArgsValue::ExternalArray(_) => write!(f, "ExternalArray"),
     }
   }
 }
